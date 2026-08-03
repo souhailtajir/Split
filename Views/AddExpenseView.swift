@@ -10,6 +10,7 @@ import SwiftData
 
 struct AddExpenseView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
 
     let trip: Trip
@@ -61,7 +62,6 @@ struct AddExpenseView: View {
         guard !includedParticipantIDs.isEmpty else { return false }
 
         if splitMethod == .byExactAmounts {
-            // Exact amounts must sum to the total (within 1 cent tolerance)
             return abs(exactAmountsRemaining) < Decimal(string: "0.01")!
         }
         return true
@@ -71,12 +71,33 @@ struct AddExpenseView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                detailsSection
-                payerSection
-                splitMethodSection
-                splitDistributionSection
-                notesSection
+            ZStack {
+                AmbientMeshBackground(style: .trips)
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        // Hero Amount Input Card
+                        heroAmountCard
+
+                        // Title & Date Card
+                        detailsCard
+
+                        // Payer Chip Selector Card
+                        payerCard
+
+                        // Split Method Card
+                        splitMethodCard
+
+                        // Split Distribution Details Card
+                        splitDistributionCard
+
+                        // Notes Card
+                        notesCard
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 100)
+                }
             }
             .navigationTitle("New Expense")
             .navigationBarTitleDisplayMode(.inline)
@@ -86,7 +107,7 @@ struct AddExpenseView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { saveExpense() }
-                        .fontWeight(.semibold)
+                        .fontWeight(.bold)
                         .disabled(!isValid)
                 }
             }
@@ -95,242 +116,220 @@ struct AddExpenseView: View {
         .onAppear { initializeDefaults() }
     }
 
-    // MARK: - Details Section
+    // MARK: - Hero Amount Card
 
-    private var detailsSection: some View {
-        Section {
-            HStack {
-                Image(systemName: "pencil.line")
-                    .foregroundStyle(.secondary)
-                TextField("What was this for?", text: $title)
-            }
+    private var heroAmountCard: some View {
+        VStack(spacing: 8) {
+            Text("ENTER AMOUNT")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.7))
+                .tracking(1.0)
 
-            HStack {
+            HStack(spacing: 4) {
                 Text(currencySymbol)
-                    .font(.title2.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.85))
+
                 TextField("0.00", text: $amountText)
                     .keyboardType(.decimalPad)
-                    .font(.system(.title2, design: .rounded, weight: .semibold))
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.leading)
             }
-
-            DatePicker("Date", selection: $date, displayedComponents: .date)
-        } header: {
-            Label("Details", systemImage: "doc.text")
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .padding(24)
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [.indigo, .purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(.white.opacity(0.3), lineWidth: 1)
+                }
+                .shadow(color: .indigo.opacity(colorScheme == .dark ? 0.4 : 0.2), radius: 14, x: 0, y: 6)
         }
     }
 
-    // MARK: - Payer Section
+    // MARK: - Details Card
 
-    private var payerSection: some View {
-        Section {
-            if participants.count <= 4 {
-                // Segmented-style for small groups
-                HStack(spacing: 8) {
+    private var detailsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Details", systemImage: "pencil.line")
+                .font(.system(.headline, design: .rounded, weight: .bold))
+                .foregroundStyle(.primary)
+
+            VStack(spacing: 12) {
+                TextField("What was this expense for?", text: $title)
+                    .font(.system(.body, design: .rounded))
+                    .padding(12)
+                    .background(colorScheme == .dark ? .white.opacity(0.06) : .black.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+
+                DatePicker("Expense Date", selection: $date, displayedComponents: .date)
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .padding(8)
+            }
+        }
+        .padding(18)
+        .appleCardStyle(cornerRadius: 22)
+    }
+
+    // MARK: - Payer Card
+
+    private var payerCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Who Paid?", systemImage: "creditcard.fill")
+                .font(.system(.headline, design: .rounded, weight: .bold))
+                .foregroundStyle(.primary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
                     ForEach(participants) { participant in
-                        payerChip(for: participant)
+                        let isSelected = selectedPayerID == participant.id
+                        Button {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                                selectedPayerID = participant.id
+                            }
+                        } label: {
+                            VStack(spacing: 6) {
+                                ParticipantAvatarView(participant: participant)
+                                Text(participant.handle)
+                                    .font(.caption.weight(isSelected ? .bold : .regular))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                isSelected ? Color.indigo.opacity(colorScheme == .dark ? 0.35 : 0.18) : (colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04)),
+                                in: RoundedRectangle(cornerRadius: 16)
+                            )
+                            .overlay {
+                                if isSelected {
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(.indigo, lineWidth: 1.5)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .listRowBackground(Color.clear)
-            } else {
-                Picker("Paid by", selection: $selectedPayerID) {
-                    Text("Select...").tag(nil as UUID?)
-                    ForEach(participants) { participant in
-                        Text(participant.handle).tag(participant.id as UUID?)
-                    }
-                }
-            }
-        } header: {
-            Label("Paid By", systemImage: "person.fill")
-        }
-    }
-
-    private func payerChip(for participant: Participant) -> some View {
-        let isSelected = selectedPayerID == participant.id
-        return Button {
-            withAnimation(.snappy(duration: 0.2)) {
-                selectedPayerID = participant.id
-            }
-        } label: {
-            VStack(spacing: 6) {
-                ParticipantAvatarView(participant: participant)
-                Text(participant.handle)
-                    .font(.caption2)
-                    .fontWeight(isSelected ? .bold : .regular)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.tint.opacity(0.15))
-                        .glassEffect()
-                }
             }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Paid by \(participant.handle)")
+        .padding(18)
+        .appleCardStyle(cornerRadius: 22)
     }
 
-    // MARK: - Split Method Section
+    // MARK: - Split Method Card
 
-    private var splitMethodSection: some View {
-        Section {
-            Picker("Method", selection: $splitMethod.animation(.smooth)) {
-                ForEach(ExpenseSplitMethod.allCases, id: \.self) { method in
-                    Text(method.displayName).tag(method)
-                }
+    private var splitMethodCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Split Method", systemImage: "divide")
+                .font(.system(.headline, design: .rounded, weight: .bold))
+                .foregroundStyle(.primary)
+
+            Picker("Split Method", selection: $splitMethod) {
+                Text("Equal").tag(ExpenseSplitMethod.equally)
+                Text("Shares").tag(ExpenseSplitMethod.byShares)
+                Text("Exact").tag(ExpenseSplitMethod.byExactAmounts)
             }
             .pickerStyle(.segmented)
-        } header: {
-            Label("Split Method", systemImage: "divide")
+            .animation(.spring(), value: splitMethod)
         }
+        .padding(18)
+        .appleCardStyle(cornerRadius: 22)
     }
 
-    // MARK: - Split Distribution Section
+    // MARK: - Split Distribution Card
 
-    @ViewBuilder
-    private var splitDistributionSection: some View {
-        Section {
-            switch splitMethod {
-            case .equally:
-                equalSplitView
-            case .byShares:
-                sharesSplitView
-            case .byExactAmounts:
-                exactAmountsSplitView
-            }
-        } header: {
-            Label("Split Between", systemImage: "person.2.fill")
-        } footer: {
-            if splitMethod == .equally, let perPerson = perPersonAmount {
-                Text("\(perPerson.formatted(.currency(code: currencyCode))) per person")
-                    .contentTransition(.numericText())
-            }
-        }
-    }
-
-    // Equal split: toggle participants in/out
-    private var equalSplitView: some View {
-        ForEach(participants) { participant in
+    private var splitDistributionCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Toggle(isOn: participantBinding(for: participant.id)) {
-                    HStack(spacing: 10) {
-                        ParticipantAvatarView(participant: participant)
-                        Text(participant.handle)
-                            .font(.body)
-                    }
-                }
-                .tint(.accentColor)
+                Label("Split Between", systemImage: "person.2.fill")
+                    .font(.system(.headline, design: .rounded, weight: .bold))
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
-                if includedParticipantIDs.contains(participant.id), let perPerson = perPersonAmount {
-                    Text(perPerson.formatted(.currency(code: currencyCode)))
-                        .font(.system(.callout, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .contentTransition(.numericText())
+                if splitMethod == .equally, let perPerson = perPersonAmount {
+                    Text("\(perPerson.formatted(.currency(code: currencyCode))) / person")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.indigo)
                 }
             }
-        }
-    }
 
-    // Shares split: stepper per participant
-    private var sharesSplitView: some View {
-        ForEach(participants) { participant in
-            HStack {
-                Toggle(isOn: participantBinding(for: participant.id)) {
-                    HStack(spacing: 10) {
-                        ParticipantAvatarView(participant: participant)
-                        Text(participant.handle)
-                    }
-                }
-                .tint(.accentColor)
+            VStack(spacing: 10) {
+                ForEach(participants) { participant in
+                    HStack {
+                        Toggle(isOn: participantBinding(for: participant.id)) {
+                            HStack(spacing: 10) {
+                                ParticipantAvatarView(participant: participant)
+                                Text(participant.handle)
+                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                    .foregroundStyle(.primary)
+                            }
+                        }
+                        .tint(.indigo)
 
-                Spacer()
+                        Spacer()
 
-                if includedParticipantIDs.contains(participant.id) {
-                    Stepper(
-                        value: shareBinding(for: participant.id),
-                        in: 1...99
-                    ) {
-                        Text("\(shareWeights[participant.id, default: 1]) share\(shareWeights[participant.id, default: 1] == 1 ? "" : "s")")
-                            .font(.system(.callout, design: .rounded))
-                            .monospacedDigit()
-                    }
-                    .frame(maxWidth: 180)
-                }
-            }
-        }
-    }
-
-    // Exact amounts split: text field per participant
-    private var exactAmountsSplitView: some View {
-        Group {
-            ForEach(participants) { participant in
-                HStack {
-                    Toggle(isOn: participantBinding(for: participant.id)) {
-                        HStack(spacing: 10) {
-                            ParticipantAvatarView(participant: participant)
-                            Text(participant.handle)
+                        if includedParticipantIDs.contains(participant.id) {
+                            if splitMethod == .byShares {
+                                Stepper(
+                                    value: shareBinding(for: participant.id),
+                                    in: 1...99
+                                ) {
+                                    Text("\(shareWeights[participant.id, default: 1]) sh")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.primary)
+                                }
+                                .frame(maxWidth: 130)
+                            } else if splitMethod == .byExactAmounts {
+                                HStack(spacing: 2) {
+                                    Text(currencySymbol)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    TextField("0.00", text: exactAmountBinding(for: participant.id))
+                                        .keyboardType(.decimalPad)
+                                        .font(.system(.subheadline, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                        .frame(width: 60)
+                                        .multilineTextAlignment(.trailing)
+                                }
+                            }
                         }
                     }
-                    .tint(.accentColor)
-
-                    Spacer()
-
-                    if includedParticipantIDs.contains(participant.id) {
-                        HStack(spacing: 4) {
-                            Text(currencySymbol)
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                            TextField("0.00", text: exactAmountBinding(for: participant.id))
-                                .keyboardType(.decimalPad)
-                                .font(.system(.callout, design: .rounded))
-                                .frame(width: 80)
-                                .multilineTextAlignment(.trailing)
-                        }
-                    }
+                    .padding(8)
+                    .background(colorScheme == .dark ? .white.opacity(0.04) : .black.opacity(0.03), in: RoundedRectangle(cornerRadius: 12))
                 }
-            }
-
-            // Remaining indicator
-            if amount != nil {
-                HStack {
-                    Text("Remaining")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(exactAmountsRemaining.formatted(.currency(code: currencyCode)))
-                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                        .foregroundStyle(
-                            abs(exactAmountsRemaining) < Decimal(string: "0.01")!
-                                ? .green : .red
-                        )
-                        .contentTransition(.numericText())
-                }
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(
-                            abs(exactAmountsRemaining) < Decimal(string: "0.01")!
-                                ? Color.green.opacity(0.08)
-                                : Color.red.opacity(0.08)
-                        )
-                )
             }
         }
+        .padding(18)
+        .appleCardStyle(cornerRadius: 22)
     }
 
-    // MARK: - Notes Section
+    // MARK: - Notes Card
 
-    private var notesSection: some View {
-        Section {
-            TextField("Add a note…", text: $notes, axis: .vertical)
-                .lineLimit(3...6)
-        } header: {
-            Label("Notes", systemImage: "note.text")
+    private var notesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Notes & Remarks", systemImage: "note.text")
+                .font(.system(.headline, design: .rounded, weight: .bold))
+                .foregroundStyle(.primary)
+
+            TextField("Add optional notes...", text: $notes, axis: .vertical)
+                .font(.subheadline)
+                .lineLimit(2...4)
+                .padding(12)
+                .background(colorScheme == .dark ? .white.opacity(0.06) : .black.opacity(0.04), in: RoundedRectangle(cornerRadius: 14))
         }
+        .padding(18)
+        .appleCardStyle(cornerRadius: 22)
     }
 
     // MARK: - Bindings
@@ -339,7 +338,7 @@ struct AddExpenseView: View {
         Binding {
             includedParticipantIDs.contains(id)
         } set: { included in
-            withAnimation(.snappy(duration: 0.2)) {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
                 if included {
                     includedParticipantIDs.insert(id)
                 } else {
@@ -368,11 +367,8 @@ struct AddExpenseView: View {
     // MARK: - Initialization
 
     private func initializeDefaults() {
-        // Include all participants by default
         includedParticipantIDs = Set(participants.map(\.id))
-        // Default payer to first participant
         selectedPayerID = participants.first?.id
-        // Initialize share weights to 1
         for p in participants {
             shareWeights[p.id] = 1
         }
@@ -402,31 +398,10 @@ struct AddExpenseView: View {
         dismiss()
     }
 
-    // MARK: - Helpers
-
     private var currencySymbol: String {
         let locale = Locale(identifier: Locale.identifier(fromComponents: [
             NSLocale.Key.currencyCode.rawValue: currencyCode
         ]))
         return locale.currencySymbol ?? currencyCode
     }
-}
-
-// MARK: - ExpenseSplitMethod Display
-
-extension ExpenseSplitMethod {
-    var displayName: String {
-        switch self {
-        case .equally: "Equal"
-        case .byShares: "Shares"
-        case .byExactAmounts: "Exact"
-        }
-    }
-}
-
-// MARK: - Preview
-
-#Preview {
-    AddExpenseView(trip: Trip(name: "Lisbon 2026"))
-        .modelContainer(for: Trip.self, inMemory: true)
 }

@@ -11,6 +11,7 @@ import SwiftData
 struct SettlementView: View {
     let trip: Trip
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var settlements: [Settlement] = []
     @State private var settledIDs: Set<String> = []
     @State private var balances: [UUID: Decimal] = [:]
@@ -31,81 +32,97 @@ struct SettlementView: View {
     // MARK: - Body
 
     var body: some View {
-        List {
-            if settlements.isEmpty {
-                allSettledView
-            } else {
-                statusSection
-                balanceOverviewSection
-                settlementsListSection
-            }
-        }
-        .listStyle(.plain)
-        .navigationTitle("Settlements")
-        .onAppear { computeSettlements() }
-        .animation(.smooth, value: settledIDs)
-    }
+        ZStack {
+            AmbientMeshBackground(style: .settlements)
 
-    // MARK: - All Settled (Empty State)
-
-    private var allSettledView: some View {
-        ContentUnavailableView {
-            Label("All Settled!", systemImage: "checkmark.seal.fill")
-        } description: {
-            Text("There are no outstanding debts for this trip. Everyone is square.")
-        }
-        .listRowBackground(Color.clear)
-    }
-
-    // MARK: - Status Section
-
-    private var statusSection: some View {
-        Section {
-            VStack(spacing: 12) {
-                // Progress ring
-                ZStack {
-                    Circle()
-                        .stroke(.quaternary, lineWidth: 6)
-                        .frame(width: 72, height: 72)
-                    Circle()
-                        .trim(from: 0, to: settledFraction)
-                        .stroke(
-                            settledFraction >= 1.0 ? Color.green : Color.accentColor,
-                            style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                        )
-                        .frame(width: 72, height: 72)
-                        .rotationEffect(.degrees(-90))
-                    VStack(spacing: 0) {
-                        Text("\(settledIDs.count)")
-                            .font(.system(.title3, design: .rounded, weight: .bold))
-                        Text("of \(settlements.count)")
-                            .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .animation(.spring(duration: 0.5), value: settledIDs.count)
-
-                // Status text
-                Group {
-                    if pendingCount == 0 {
-                        Label("All debts settled!", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 20) {
+                    if settlements.isEmpty {
+                        allSettledCard
                     } else {
-                        Text("\(pendingCount) transaction\(pendingCount == 1 ? "" : "s") needed")
-                            .foregroundStyle(.secondary)
+                        // Progress Health Ring Section
+                        progressRingCard
+
+                        // Balance Pills Deck
+                        balanceOverviewCard
+
+                        // Transaction Cards List
+                        transactionsCard
                     }
                 }
-                .font(.subheadline.weight(.medium))
-                .contentTransition(.numericText())
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 100)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
         }
-        .listRowBackground(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-                .glassEffect()
-        )
+        .navigationTitle("Settlements")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { computeSettlements() }
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: settledIDs)
+    }
+
+    // MARK: - All Settled Card
+
+    private var allSettledCard: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(.green.gradient)
+
+            VStack(spacing: 6) {
+                Text("All Settled!")
+                    .font(.system(.title3, design: .rounded, weight: .bold))
+                    .foregroundStyle(.primary)
+                Text("There are no outstanding debts for this trip. Everyone is square.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(28)
+        .appleCardStyle(cornerRadius: 24)
+    }
+
+    // MARK: - Progress Ring Card
+
+    private var progressRingCard: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 24) {
+                // Health Ring
+                HealthRingView(
+                    progress: settledFraction,
+                    ringColor: settledFraction >= 1.0 ? .green : .teal,
+                    lineWidth: 10
+                )
+                .frame(width: 84, height: 84)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("SETTLEMENT PROGRESS")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .tracking(0.5)
+
+                    Text("\(settledIDs.count) of \(settlements.count) Settled")
+                        .font(.system(.title3, design: .rounded, weight: .bold))
+                        .foregroundStyle(.primary)
+
+                    Group {
+                        if pendingCount == 0 {
+                            Text("Everyone is square!")
+                                .foregroundStyle(.green)
+                        } else {
+                            Text("\(pendingCount) transaction\(pendingCount == 1 ? "" : "s") pending")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .font(.caption.weight(.medium))
+                }
+
+                Spacer()
+            }
+        }
+        .padding(20)
+        .appleCardStyle(cornerRadius: 22)
     }
 
     private var settledFraction: Double {
@@ -113,48 +130,56 @@ struct SettlementView: View {
         return Double(settledIDs.count) / Double(settlements.count)
     }
 
-    // MARK: - Balance Overview Section
+    // MARK: - Balance Overview Card
 
-    private var balanceOverviewSection: some View {
-        Section {
+    private var balanceOverviewCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Member Balances", systemImage: "chart.bar.fill")
+                .font(.system(.headline, design: .rounded, weight: .bold))
+                .foregroundStyle(.primary)
+
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     ForEach(activeParticipants) { participant in
                         let balance = balances[participant.id] ?? .zero
-                        BalancePillView(
+                        AppleCardBalancePill(
                             participant: participant,
                             balance: balance,
                             currencyCode: primaryCurrencyCode
                         )
                     }
                 }
-                .padding(.vertical, 4)
             }
-        } header: {
-            Label("Balances", systemImage: "chart.bar.fill")
         }
-        .listRowBackground(Color.clear)
+        .padding(20)
+        .appleCardStyle(cornerRadius: 22)
     }
 
-    // MARK: - Settlements List Section
+    // MARK: - Transactions Card
 
-    private var settlementsListSection: some View {
-        Section {
-            ForEach(Array(settlements.enumerated()), id: \.offset) { index, settlement in
-                SettlementCardView(
-                    settlement: settlement,
-                    currencyCode: primaryCurrencyCode,
-                    isSettled: settledIDs.contains(settlementID(index)),
-                    onToggle: {
-                        withAnimation(.spring(duration: 0.35)) {
-                            toggleSettled(index)
+    private var transactionsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Suggested Transfers", systemImage: "arrow.left.arrow.right")
+                .font(.system(.headline, design: .rounded, weight: .bold))
+                .foregroundStyle(.primary)
+
+            LazyVStack(spacing: 12) {
+                ForEach(Array(settlements.enumerated()), id: \.offset) { index, settlement in
+                    AppleCardSettlementRow(
+                        settlement: settlement,
+                        currencyCode: primaryCurrencyCode,
+                        isSettled: settledIDs.contains(settlementID(index)),
+                        onToggle: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                toggleSettled(index)
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
-        } header: {
-            Label("Transactions", systemImage: "arrow.left.arrow.right")
         }
+        .padding(20)
+        .appleCardStyle(cornerRadius: 22)
     }
 
     // MARK: - Settlement Logic
@@ -193,65 +218,72 @@ struct SettlementView: View {
     }
 }
 
-// MARK: - Settlement Card
+// MARK: - Apple Card Settlement Row
 
-private struct SettlementCardView: View {
+private struct AppleCardSettlementRow: View {
     let settlement: Settlement
     let currencyCode: String
     let isSettled: Bool
     let onToggle: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
-        HStack(spacing: 14) {
-            // From avatar
-            VStack(spacing: 4) {
+        HStack(spacing: 12) {
+            // From Avatar
+            VStack(spacing: 3) {
                 initialsAvatar(for: settlement.from)
                 Text(settlement.from.handle)
-                    .font(.caption2)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
             }
-            .frame(width: 52)
+            .frame(width: 48)
 
-            // Arrow with amount
+            // Arrow & Amount
             VStack(spacing: 2) {
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(isSettled ? .green : .primary)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(isSettled ? .green : .teal)
                 Text(settlement.amount.formatted(.currency(code: currencyCode)))
                     .font(.system(.callout, design: .rounded, weight: .bold))
                     .foregroundStyle(isSettled ? .secondary : .primary)
             }
             .frame(maxWidth: .infinity)
 
-            // To avatar
-            VStack(spacing: 4) {
+            // To Avatar
+            VStack(spacing: 3) {
                 initialsAvatar(for: settlement.to)
                 Text(settlement.to.handle)
-                    .font(.caption2)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
             }
-            .frame(width: 52)
+            .frame(width: 48)
 
-            // Settled toggle
+            // Checkmark Toggle Button
             Button {
                 onToggle()
             } label: {
-                Image(systemName: isSettled ? "checkmark.circle.fill" : "circle")
-                    .font(.title2)
-                    .foregroundStyle(isSettled ? .green : .secondary)
-                    .symbolEffect(.bounce, value: isSettled)
+                ZStack {
+                    Circle()
+                        .fill(isSettled ? Color.green.opacity(0.2) : (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05)))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: isSettled ? "checkmark.circle.fill" : "circle")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(isSettled ? .green : .secondary)
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isSettled ? "Mark as unsettled" : "Mark as settled")
+            .buttonStyle(.appleCard)
         }
-        .padding(.vertical, 8)
-        .opacity(isSettled ? 0.5 : 1.0)
-        .strikethrough(isSettled, color: .green)
+        .padding(12)
+        .background(colorScheme == .dark ? .white.opacity(isSettled ? 0.03 : 0.06) : .black.opacity(isSettled ? 0.02 : 0.04), in: RoundedRectangle(cornerRadius: 16))
+        .opacity(isSettled ? 0.6 : 1.0)
     }
 
     private func initialsAvatar(for participant: SettlementParticipant) -> some View {
         let initials = String(participant.handle.prefix(2)).uppercased()
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .mint, .cyan]
+        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .mint]
         let color = colors[abs(participant.id.hashValue) % colors.count]
 
         return ZStack {
@@ -265,54 +297,47 @@ private struct SettlementCardView: View {
     }
 }
 
-// MARK: - Balance Pill
+// MARK: - Apple Card Balance Pill
 
-private struct BalancePillView: View {
+private struct AppleCardBalancePill: View {
     let participant: Participant
     let balance: Decimal
     let currencyCode: String
 
+    @Environment(\.colorScheme) private var colorScheme
     private var isCreditor: Bool { balance > .zero }
-    private var isDebtor: Bool { balance < .zero }
 
     var body: some View {
         VStack(spacing: 6) {
             ParticipantAvatarView(participant: participant)
 
             Text(participant.handle)
-                .font(.caption2)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
                 .lineLimit(1)
 
             if balance != .zero {
                 Text(formattedBalance)
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                    .foregroundStyle(isCreditor ? .green : .red)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(isCreditor ? .green : .pink)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(
                         Capsule()
-                            .fill(isCreditor ? Color.green.opacity(0.12) : Color.red.opacity(0.12))
+                            .fill(isCreditor ? Color.green.opacity(0.15) : Color.pink.opacity(0.15))
                     )
             } else {
-                Text("settled")
+                Text("Settled")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
         }
-        .frame(width: 72)
+        .padding(10)
+        .background(colorScheme == .dark ? .white.opacity(0.06) : .black.opacity(0.04), in: RoundedRectangle(cornerRadius: 16))
     }
 
     private var formattedBalance: String {
         let sign = isCreditor ? "+" : ""
         return sign + balance.formatted(.currency(code: currencyCode))
     }
-}
-
-// MARK: - Preview
-
-#Preview {
-    NavigationStack {
-        SettlementView(trip: Trip(name: "Lisbon 2026"))
-    }
-    .modelContainer(for: Trip.self, inMemory: true)
 }
