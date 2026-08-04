@@ -82,7 +82,7 @@ struct SettingsView: View {
                         .rotationEffect(.degrees(isSyncing ? 360 : 0))
                         .animation(isSyncing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isSyncing)
                 }
-                .buttonStyle(.appleCard)
+                .buttonStyle(.glass)
                 .disabled(isSyncing)
             }
 
@@ -116,7 +116,7 @@ struct SettingsView: View {
             HStack(spacing: 12) {
                 // Trips Count
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("TRIPS")
+                    Text("GROUPS")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundStyle(.secondary)
                     Text("\(trips.filter { !$0.isTombstoned }.count)")
@@ -244,11 +244,19 @@ struct SettingsView: View {
             syncStatusText = "Broadcasting peer sync..."
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
             withAnimation {
                 isSyncing = false
                 syncStatusText = "P2P Mesh Synced"
             }
         }
     }
+}
+
+// MARK: - Preview
+
+#Preview("Settings") {
+    SettingsView()
+        .modelContainer(PreviewSampleData.container)
 }

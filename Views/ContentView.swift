@@ -9,10 +9,10 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @State private var selectedTab: TabDestination = .trips
+    @State private var selectedTab: TabDestination = .groups
 
     enum TabDestination: String, CaseIterable, Identifiable {
-        case trips = "Trips"
+        case groups = "Groups"
         case activity = "Activity"
         case settings = "Settings"
 
@@ -20,7 +20,7 @@ struct ContentView: View {
 
         var icon: String {
             switch self {
-            case .trips: "airplane"
+            case .groups: "rectangle.3.group"
             case .activity: "chart.pie.fill"
             case .settings: "gearshape.fill"
             }
@@ -29,11 +29,11 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            TripsView()
+            GroupsView()
                 .tabItem {
-                    Label("Trips", systemImage: TabDestination.trips.icon)
+                    Label("Groups", systemImage: TabDestination.groups.icon)
                 }
-                .tag(TabDestination.trips)
+                .tag(TabDestination.groups)
 
             ActivityView()
                 .tabItem {
@@ -55,5 +55,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: Trip.self, inMemory: true)
+        .modelContainer(PreviewSampleData.container)
 }

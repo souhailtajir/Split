@@ -10,7 +10,7 @@ import SwiftUI
 // MARK: - Tab Gradient Preset
 
 enum TabGradientStyle {
-    case trips
+    case groups
     case activity
     case settlements
     case settings
@@ -18,7 +18,7 @@ enum TabGradientStyle {
 
     var colors: [Color] {
         switch self {
-        case .trips:
+        case .groups:
             [Color.indigo, Color.purple, Color.blue]
         case .activity:
             [Color.pink, Color.purple, Color.orange]
@@ -39,24 +39,21 @@ extension Color {
 // MARK: - Progressive Top Gradient Header Background
 
 struct AmbientMeshBackground: View {
-    var style: TabGradientStyle = .trips
+    var style: TabGradientStyle = .groups
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var animateOffset = false
 
     var body: some View {
         ZStack {
-            // Base background fill: Pure White in Light Mode, Pure Black in Dark Mode
             (colorScheme == .dark ? Color.black : Color(uiColor: .systemBackground))
                 .ignoresSafeArea()
 
-            // Full-Width Progressive Top Header Gradient
             GeometryReader { proxy in
                 let size = proxy.size
-                let headerHeight = size.height * 0.40 // Occupies top ~40% of view
+                let headerHeight = size.height * 0.40
 
                 ZStack(alignment: .top) {
-                    // Full-width Gradient Banner
                     LinearGradient(
                         colors: style.colors.map { color in
                             color.opacity(colorScheme == .dark ? 0.55 : 0.28)
@@ -67,7 +64,6 @@ struct AmbientMeshBackground: View {
                     .frame(width: size.width, height: headerHeight)
                     .blur(radius: 25)
 
-                    // Secondary ambient glow accent moving across top width
                     LinearGradient(
                         colors: [
                             style.colors.first?.opacity(colorScheme == .dark ? 0.35 : 0.2) ?? .clear,
@@ -80,7 +76,6 @@ struct AmbientMeshBackground: View {
                     .blur(radius: 35)
                 }
                 .mask {
-                    // Progressive Fade Mask (100% visible at top, smoothly fades to 0% at bottom)
                     LinearGradient(
                         stops: [
                             .init(color: .black, location: 0.0),
@@ -105,127 +100,47 @@ struct AmbientMeshBackground: View {
     }
 }
 
-// MARK: - Apple Card Glass Style Modifier
+// MARK: - Native Liquid Glass Card Modifier (iOS 26+)
 
-struct AppleCardStyle: ViewModifier {
+/// Applies the system `glassEffect` for cards and content sections.
+/// Replaces the old manual material + stroke + shadow approach.
+struct LiquidGlassCardModifier: ViewModifier {
     var cornerRadius: CGFloat = 22
-    var strokeOpacity: Double = 0.15
-    var shadowRadius: CGFloat = 10
-
-    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         content
-            .background {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(colorScheme == .dark ? .ultraThinMaterial : .regularMaterial)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(
-                                colorScheme == .dark
-                                ? Color.white.opacity(0.04)
-                                : Color.white.opacity(0.55)
-                            )
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        colorScheme == .dark ? .white.opacity(0.22) : .white.opacity(0.9),
-                                        colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.06),
-                                        .clear
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    }
-                    .shadow(
-                        color: colorScheme == .dark
-                        ? Color.black.opacity(0.35)
-                        : Color.black.opacity(0.08),
-                        radius: shadowRadius,
-                        x: 0,
-                        y: colorScheme == .dark ? 6 : 4
-                    )
-            }
+            .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
     }
 }
 
 extension View {
+    /// Native liquid glass card — uses the system `glassEffect` API.
     func appleCardStyle(cornerRadius: CGFloat = 22, strokeOpacity: Double = 0.15, shadowRadius: CGFloat = 10) -> some View {
-        modifier(AppleCardStyle(cornerRadius: cornerRadius, strokeOpacity: strokeOpacity, shadowRadius: shadowRadius))
+        modifier(LiquidGlassCardModifier(cornerRadius: cornerRadius))
     }
 
     func clearGlassCard(cornerRadius: CGFloat = 18) -> some View {
-        modifier(AppleCardStyle(cornerRadius: cornerRadius, strokeOpacity: 0.12, shadowRadius: 6))
-    }
-
-    func glassEffect() -> some View {
-        modifier(AppleCardStyle(cornerRadius: 16, strokeOpacity: 0.12, shadowRadius: 6))
+        self.glassEffect(.clear, in: .rect(cornerRadius: cornerRadius))
     }
 }
 
-// MARK: - Interactive Clear Glass Button Style
+// MARK: - Interactive Glass Action Button
 
-struct AppleCardButtonStyle: ButtonStyle {
-    var cornerRadius: CGFloat = 16
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .opacity(configuration.isPressed ? 0.85 : 1.0)
-            .overlay {
-                if configuration.isPressed {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.06))
-                }
-            }
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
-    }
-}
-
-extension ButtonStyle where Self == AppleCardButtonStyle {
-    static var appleCard: AppleCardButtonStyle {
-        AppleCardButtonStyle()
-    }
-}
-
-// MARK: - Interactive Glass Action Button Helper
-
+/// A pill-shaped action button using native liquid glass.
 struct GlassActionButton: View {
     let title: String
     let systemImage: String
     var accentColor: Color = .indigo
     let action: () -> Void
 
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: systemImage)
-                    .font(.subheadline.weight(.bold))
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-            }
-            .foregroundStyle(colorScheme == .dark ? .white : accentColor)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background {
-                Capsule()
-                    .fill(accentColor.opacity(colorScheme == .dark ? 0.35 : 0.12))
-                    .overlay {
-                        Capsule()
-                            .stroke(accentColor.opacity(colorScheme == .dark ? 0.55 : 0.3), lineWidth: 1)
-                    }
-            }
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .imageScale(.small)
         }
-        .buttonStyle(.appleCard)
+        .buttonStyle(.glass)
+        .tint(accentColor)
     }
 }
 
@@ -285,7 +200,6 @@ struct ConcentricHealthRingsView: View {
 
     var body: some View {
         ZStack {
-            // Outer Ring - Total Spend
             HealthRingView(
                 progress: outerProgress,
                 ringColor: .pink,
@@ -293,7 +207,6 @@ struct ConcentricHealthRingsView: View {
             )
             .frame(width: 100, height: 100)
 
-            // Middle Ring - Shared Ratio
             HealthRingView(
                 progress: middleProgress,
                 ringColor: .teal,
@@ -301,7 +214,6 @@ struct ConcentricHealthRingsView: View {
             )
             .frame(width: 76, height: 76)
 
-            // Inner Ring - Settlement Status
             HealthRingView(
                 progress: innerProgress,
                 ringColor: .indigo,
@@ -347,4 +259,34 @@ struct ParticipantAvatarView: View {
         let index = abs(participant.id.hashValue) % colors.count
         return colors[index]
     }
+}
+
+// MARK: - Previews
+
+#Preview("Ambient Background — Groups") {
+    AmbientMeshBackground(style: .groups)
+}
+
+#Preview("Health Ring") {
+    HealthRingView(progress: 0.72, ringColor: .teal, lineWidth: 12)
+        .frame(width: 100, height: 100)
+        .padding()
+}
+
+#Preview("Concentric Rings") {
+    ConcentricHealthRingsView(
+        outerProgress: 0.8,
+        middleProgress: 0.6,
+        innerProgress: 0.9
+    )
+    .frame(width: 120, height: 120)
+    .padding()
+}
+
+#Preview("Glass Action Button") {
+    VStack(spacing: 16) {
+        GlassActionButton(title: "New Group", systemImage: "plus", accentColor: .indigo) {}
+        GlassActionButton(title: "Add Expense", systemImage: "plus.circle.fill", accentColor: .teal) {}
+    }
+    .padding()
 }

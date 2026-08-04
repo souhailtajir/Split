@@ -1,14 +1,14 @@
 //
-//  TripDetailView.swift
+//  GroupDetailView.swift
 //  Split
 //
-//  Created by Souhail on 8/3/26.
+//  Created by Souhail on 8/4/26.
 //
 
 import SwiftUI
 import SwiftData
 
-struct TripDetailView: View {
+struct GroupDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     @Bindable var trip: Trip
@@ -45,7 +45,7 @@ struct TripDetailView: View {
 
     var body: some View {
         ZStack {
-            AmbientMeshBackground(style: .trips)
+            AmbientMeshBackground(style: .groups)
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 20) {
@@ -76,21 +76,10 @@ struct TripDetailView: View {
                 NavigationLink {
                     SettlementView(trip: trip)
                 } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.triangle.swap")
-                            .font(.caption.weight(.bold))
-                        Text("Settle Up")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(colorScheme == .dark ? .ultraThinMaterial : .regularMaterial, in: .capsule)
-                    .overlay {
-                        Capsule().stroke(colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.1), lineWidth: 1)
-                    }
+                    Label("Settle Up", systemImage: "arrow.triangle.swap")
+                        .font(.subheadline.weight(.semibold))
                 }
-                .buttonStyle(.appleCard)
+                .buttonStyle(.glass)
             }
         }
         .sheet(isPresented: $showingAddExpense) {
@@ -167,7 +156,7 @@ struct TripDetailView: View {
     private var participantsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("Trip Members", systemImage: "person.2.fill")
+                Label("Members", systemImage: "person.2.fill")
                     .font(.system(.headline, design: .rounded, weight: .bold))
                     .foregroundStyle(.primary)
                 Spacer()
@@ -177,7 +166,7 @@ struct TripDetailView: View {
             }
 
             if activeParticipants.isEmpty {
-                Text("No participants added yet.")
+                Text("No members added yet.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -221,7 +210,7 @@ struct TripDetailView: View {
                         .font(.title3)
                         .foregroundStyle(.indigo)
                 }
-                .buttonStyle(.appleCard)
+                .buttonStyle(.glass)
             }
 
             if activeExpenses.isEmpty {
@@ -254,7 +243,7 @@ struct TripDetailView: View {
             Text("No Expenses Recorded")
                 .font(.headline)
                 .foregroundStyle(.primary)
-            Text("Tap the + button to log shared payments for this trip.")
+            Text("Tap the + button to log shared payments.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -377,4 +366,13 @@ struct AppleCardExpenseRow: View {
         }
         return .indigo
     }
+}
+
+// MARK: - Preview
+
+#Preview("Group Detail") {
+    NavigationStack {
+        GroupDetailView(trip: PreviewSampleData.sampleGroup)
+    }
+    .modelContainer(PreviewSampleData.container)
 }

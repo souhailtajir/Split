@@ -72,7 +72,7 @@ struct AddExpenseView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AmbientMeshBackground(style: .trips)
+                AmbientMeshBackground(style: .groups)
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 20) {
@@ -404,4 +404,11 @@ struct AddExpenseView: View {
         ]))
         return locale.currencySymbol ?? currencyCode
     }
+}
+
+// MARK: - Preview
+
+#Preview("Add Expense") {
+    AddExpenseView(trip: PreviewSampleData.sampleGroup)
+        .modelContainer(PreviewSampleData.container)
 }

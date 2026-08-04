@@ -73,7 +73,7 @@ struct SettlementView: View {
                 Text("All Settled!")
                     .font(.system(.title3, design: .rounded, weight: .bold))
                     .foregroundStyle(.primary)
-                Text("There are no outstanding debts for this trip. Everyone is square.")
+                Text("No outstanding balances. Everyone is square.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -274,7 +274,7 @@ private struct AppleCardSettlementRow: View {
                         .foregroundStyle(isSettled ? .green : .secondary)
                 }
             }
-            .buttonStyle(.appleCard)
+            .buttonStyle(.plain)
         }
         .padding(12)
         .background(colorScheme == .dark ? .white.opacity(isSettled ? 0.03 : 0.06) : .black.opacity(isSettled ? 0.02 : 0.04), in: RoundedRectangle(cornerRadius: 16))
@@ -340,4 +340,13 @@ private struct AppleCardBalancePill: View {
         let sign = isCreditor ? "+" : ""
         return sign + balance.formatted(.currency(code: currencyCode))
     }
+}
+
+// MARK: - Preview
+
+#Preview("Settlements") {
+    NavigationStack {
+        SettlementView(trip: PreviewSampleData.sampleGroup)
+    }
+    .modelContainer(PreviewSampleData.container)
 }

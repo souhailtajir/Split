@@ -60,7 +60,7 @@ struct ActivityView: View {
                     .padding(.bottom, 100)
                 }
             }
-            .navigationTitle("Activity & Health")
+            .navigationTitle("Activity")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -208,7 +208,7 @@ struct ActivityView: View {
                         .foregroundStyle(.orange)
                 }
 
-                Text("AVG / TRIP")
+                Text("AVG / GROUP")
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .foregroundStyle(.secondary)
 
@@ -413,4 +413,11 @@ struct ActivityView: View {
             return ParticipantLeaderboardItem(handle: val.handle, initials: initials, color: color, expenseCount: val.count, totalPaid: val.total)
         }.sorted { $0.totalPaid > $1.totalPaid }
     }
+}
+
+// MARK: - Preview
+
+#Preview("Activity") {
+    ActivityView()
+        .modelContainer(PreviewSampleData.container)
 }
