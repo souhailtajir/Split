@@ -7,103 +7,57 @@
 
 import SwiftUI
 
-// MARK: - Tab Gradient Preset
-
-enum TabGradientStyle {
-    case groups
-    case activity
-    case settlements
-    case settings
-    case custom([Color])
-
-    var colors: [Color] {
-        switch self {
-        case .groups:
-            [Color.indigo, Color.purple, Color.blue]
-        case .activity:
-            [Color.pink, Color.purple, Color.orange]
-        case .settlements:
-            [Color.teal, Color.emerald, Color.cyan]
-        case .settings:
-            [Color.cyan, Color.blue, Color.indigo]
-        case .custom(let customColors):
-            customColors
-        }
-    }
-}
+// MARK: - Custom Color Extension
 
 extension Color {
     static let emerald = Color(red: 0.05, green: 0.75, blue: 0.5)
 }
 
-// MARK: - Progressive Top Gradient Header Background
+// MARK: - Premium Top Gradient Wash
 
-struct AmbientMeshBackground: View {
-    var style: TabGradientStyle = .groups
+/// A subtle, dual-tone gradient wash that sits at the top of each screen.
+/// Creates a premium ambient glow behind Liquid Glass surfaces.
+struct TopGradientWash: View {
+    var tint: Color = .indigo
+    var secondaryTint: Color = .purple
 
     @Environment(\.colorScheme) private var colorScheme
-    @State private var animateOffset = false
 
     var body: some View {
-        ZStack {
-            (colorScheme == .dark ? Color.black : Color(uiColor: .systemBackground))
-                .ignoresSafeArea()
+        ZStack(alignment: .top) {
+            // Primary elliptical wash — left-biased
+            EllipticalGradient(
+                colors: [
+                    tint.opacity(colorScheme == .dark ? 0.5 : 0.3),
+                    tint.opacity(colorScheme == .dark ? 0.2 : 0.08),
+                    .clear
+                ],
+                center: UnitPoint(x: 0.25, y: 0.0),
+                startRadiusFraction: 0.0,
+                endRadiusFraction: 0.7
+            )
 
-            GeometryReader { proxy in
-                let size = proxy.size
-                let headerHeight = size.height * 0.40
-
-                ZStack(alignment: .top) {
-                    LinearGradient(
-                        colors: style.colors.map { color in
-                            color.opacity(colorScheme == .dark ? 0.55 : 0.28)
-                        },
-                        startPoint: animateOffset ? .topLeading : .top,
-                        endPoint: animateOffset ? .bottomTrailing : .bottom
-                    )
-                    .frame(width: size.width, height: headerHeight)
-                    .blur(radius: 25)
-
-                    LinearGradient(
-                        colors: [
-                            style.colors.first?.opacity(colorScheme == .dark ? 0.35 : 0.2) ?? .clear,
-                            style.colors.last?.opacity(colorScheme == .dark ? 0.25 : 0.1) ?? .clear
-                        ],
-                        startPoint: animateOffset ? .leading : .trailing,
-                        endPoint: animateOffset ? .trailing : .leading
-                    )
-                    .frame(width: size.width, height: headerHeight * 0.8)
-                    .blur(radius: 35)
-                }
-                .mask {
-                    LinearGradient(
-                        stops: [
-                            .init(color: .black, location: 0.0),
-                            .init(color: .black, location: 0.55),
-                            .init(color: .black.opacity(0.8), location: 0.75),
-                            .init(color: .clear, location: 1.0)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: headerHeight)
-                }
-                .ignoresSafeArea(edges: .top)
-            }
-            .ignoresSafeArea()
+            // Secondary accent wash — right-biased
+            EllipticalGradient(
+                colors: [
+                    secondaryTint.opacity(colorScheme == .dark ? 0.3 : 0.15),
+                    .clear
+                ],
+                center: UnitPoint(x: 0.85, y: 0.0),
+                startRadiusFraction: 0.0,
+                endRadiusFraction: 0.45
+            )
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 6.0).repeatForever(autoreverses: true)) {
-                animateOffset.toggle()
-            }
-        }
+        .frame(height: 420)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 }
 
 // MARK: - Native Liquid Glass Card Modifier (iOS 26+)
 
-/// Applies the system `glassEffect` for cards and content sections.
-/// Replaces the old manual material + stroke + shadow approach.
+/// Applies the system `glassEffect` for static content cards.
 struct LiquidGlassCardModifier: ViewModifier {
     var cornerRadius: CGFloat = 22
 
@@ -113,14 +67,49 @@ struct LiquidGlassCardModifier: ViewModifier {
     }
 }
 
+/// Applies an interactive glass effect for tappable / pressable surfaces.
+/// Provides native scale-on-press, bounce, and touch-point illumination.
+struct GlassInteractiveCardModifier: ViewModifier {
+    var cornerRadius: CGFloat = 20
+
+    func body(content: Content) -> some View {
+        content
+            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
+    }
+}
+
 extension View {
     /// Native liquid glass card — uses the system `glassEffect` API.
-    func appleCardStyle(cornerRadius: CGFloat = 22, strokeOpacity: Double = 0.15, shadowRadius: CGFloat = 10) -> some View {
+    func appleCardStyle(cornerRadius: CGFloat = 22) -> some View {
         modifier(LiquidGlassCardModifier(cornerRadius: cornerRadius))
     }
 
+    /// Interactive liquid glass card — for tappable surfaces with press feedback.
+    func interactiveGlassCard(cornerRadius: CGFloat = 20) -> some View {
+        modifier(GlassInteractiveCardModifier(cornerRadius: cornerRadius))
+    }
+
+    /// Clear glass for subtle translucent chips and inner elements.
     func clearGlassCard(cornerRadius: CGFloat = 18) -> some View {
         self.glassEffect(.clear, in: .rect(cornerRadius: cornerRadius))
+    }
+
+    /// Clear glass capsule for pill-shaped elements.
+    func clearGlassCapsule() -> some View {
+        self.glassEffect(.clear, in: .capsule)
+    }
+}
+
+// MARK: - Button Styles
+
+/// A lightweight button style that scales content slightly while pressed.
+struct ScaleButtonStyle: ButtonStyle {
+    var scale: CGFloat = 0.96
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 
@@ -141,6 +130,33 @@ struct GlassActionButton: View {
         }
         .buttonStyle(.glass)
         .tint(accentColor)
+    }
+}
+
+/// A prominent glass action button for primary CTAs (Save, Create, etc.)
+struct GlassProminentActionButton: View {
+    let title: String
+    var systemImage: String? = nil
+    var accentColor: Color = .indigo
+    var isDisabled: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Group {
+                if let systemImage {
+                    Label(title, systemImage: systemImage)
+                } else {
+                    Text(title)
+                }
+            }
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+        }
+        .buttonStyle(.glassProminent)
+        .tint(isDisabled ? .gray : accentColor)
+        .disabled(isDisabled)
     }
 }
 
@@ -229,21 +245,22 @@ struct ConcentricHealthRingsView: View {
 struct ParticipantAvatarView: View {
     let participant: Participant
 
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
         ZStack {
             Circle()
                 .fill(avatarColor.gradient)
                 .frame(width: 38, height: 38)
-            Circle()
-                .strokeBorder(colorScheme == .dark ? .white.opacity(0.25) : .white, lineWidth: 1.5)
-                .frame(width: 38, height: 38)
+
             Text(initials)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
         }
         .shadow(color: avatarColor.opacity(0.35), radius: 5, x: 0, y: 2)
+        .overlay {
+            Circle()
+                .glassEffect(.clear, in: .circle)
+                .frame(width: 40, height: 40)
+        }
     }
 
     private var initials: String {
@@ -263,8 +280,16 @@ struct ParticipantAvatarView: View {
 
 // MARK: - Previews
 
-#Preview("Ambient Background — Groups") {
-    AmbientMeshBackground(style: .groups)
+#Preview("Top Gradient Wash") {
+    ZStack {
+        TopGradientWash(tint: .indigo, secondaryTint: .purple)
+        VStack {
+            Text("Hello, Glass")
+                .font(.largeTitle.bold())
+            Spacer()
+        }
+        .padding(.top, 80)
+    }
 }
 
 #Preview("Health Ring") {
@@ -287,6 +312,7 @@ struct ParticipantAvatarView: View {
     VStack(spacing: 16) {
         GlassActionButton(title: "New Group", systemImage: "plus", accentColor: .indigo) {}
         GlassActionButton(title: "Add Expense", systemImage: "plus.circle.fill", accentColor: .teal) {}
+        GlassProminentActionButton(title: "Create Group", systemImage: "plus.circle.fill") {}
     }
     .padding()
 }

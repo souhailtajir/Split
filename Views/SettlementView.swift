@@ -11,7 +11,6 @@ import SwiftData
 struct SettlementView: View {
     let trip: Trip
 
-    @Environment(\.colorScheme) private var colorScheme
     @State private var settlements: [Settlement] = []
     @State private var settledIDs: Set<String> = []
     @State private var balances: [UUID: Decimal] = [:]
@@ -33,7 +32,7 @@ struct SettlementView: View {
 
     var body: some View {
         ZStack {
-            AmbientMeshBackground(style: .settlements)
+            TopGradientWash(tint: .teal, secondaryTint: .emerald)
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 20) {
@@ -58,7 +57,7 @@ struct SettlementView: View {
         .navigationTitle("Settlements")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { computeSettlements() }
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: settledIDs)
+        .animation(.spring(.bouncy), value: settledIDs)
     }
 
     // MARK: - All Settled Card
@@ -226,8 +225,6 @@ private struct AppleCardSettlementRow: View {
     let isSettled: Bool
     let onToggle: () -> Void
 
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
         HStack(spacing: 12) {
             // From Avatar
@@ -265,19 +262,16 @@ private struct AppleCardSettlementRow: View {
             Button {
                 onToggle()
             } label: {
-                ZStack {
-                    Circle()
-                        .fill(isSettled ? Color.green.opacity(0.2) : (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05)))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: isSettled ? "checkmark.circle.fill" : "circle")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(isSettled ? .green : .secondary)
-                }
+                Image(systemName: isSettled ? "checkmark.circle.fill" : "circle")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(isSettled ? .green : .secondary)
+                    .frame(width: 36, height: 36)
+                    .glassEffect(.clear, in: .circle)
             }
             .buttonStyle(.plain)
         }
         .padding(12)
-        .background(colorScheme == .dark ? .white.opacity(isSettled ? 0.03 : 0.06) : .black.opacity(isSettled ? 0.02 : 0.04), in: RoundedRectangle(cornerRadius: 16))
+        .clearGlassCard(cornerRadius: 16)
         .opacity(isSettled ? 0.6 : 1.0)
     }
 
@@ -304,7 +298,6 @@ private struct AppleCardBalancePill: View {
     let balance: Decimal
     let currencyCode: String
 
-    @Environment(\.colorScheme) private var colorScheme
     private var isCreditor: Bool { balance > .zero }
 
     var body: some View {
@@ -333,7 +326,7 @@ private struct AppleCardBalancePill: View {
             }
         }
         .padding(10)
-        .background(colorScheme == .dark ? .white.opacity(0.06) : .black.opacity(0.04), in: RoundedRectangle(cornerRadius: 16))
+        .clearGlassCard(cornerRadius: 16)
     }
 
     private var formattedBalance: String {

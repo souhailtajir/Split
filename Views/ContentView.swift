@@ -16,7 +16,7 @@ struct ContentView: View {
         case activity = "Activity"
         case settings = "Settings"
 
-        var id: String { self.rawValue }
+        var id: String { rawValue }
 
         var icon: String {
             switch self {
@@ -29,25 +29,18 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            GroupsView()
-                .tabItem {
-                    Label("Groups", systemImage: TabDestination.groups.icon)
-                }
-                .tag(TabDestination.groups)
+            Tab("Groups", systemImage: TabDestination.groups.icon, value: .groups) {
+                GroupsView()
+            }
 
-            ActivityView()
-                .tabItem {
-                    Label("Activity", systemImage: TabDestination.activity.icon)
-                }
-                .tag(TabDestination.activity)
+            Tab("Activity", systemImage: TabDestination.activity.icon, value: .activity) {
+                ActivityView()
+            }
 
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: TabDestination.settings.icon)
-                }
-                .tag(TabDestination.settings)
+            Tab("Settings", systemImage: TabDestination.settings.icon, value: .settings) {
+                SettingsView()
+            }
         }
-        .tint(.indigo)
     }
 }
 

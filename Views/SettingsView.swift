@@ -12,7 +12,6 @@ struct SettingsView: View {
     @Query private var trips: [Trip]
     @Query private var expenses: [Expense]
 
-    @Environment(\.colorScheme) private var colorScheme
     @State private var isSyncing = false
     @State private var syncStatusText = "P2P Mesh Network Ready"
     @State private var discoveredPeersCount = 1
@@ -20,7 +19,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AmbientMeshBackground(style: .settings)
+                TopGradientWash(tint: .cyan, secondaryTint: .blue)
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 20) {
@@ -42,7 +41,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings & Sync")
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
 

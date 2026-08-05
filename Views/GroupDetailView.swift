@@ -10,11 +10,7 @@ import SwiftData
 
 struct GroupDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.colorScheme) private var colorScheme
     @Bindable var trip: Trip
-
-    @State private var showingAddExpense = false
-    @State private var selectedExpense: Expense?
 
     // MARK: - Computed Properties
 
@@ -45,7 +41,7 @@ struct GroupDetailView: View {
 
     var body: some View {
         ZStack {
-            AmbientMeshBackground(style: .groups)
+            TopGradientWash(tint: .indigo, secondaryTint: .purple)
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 20) {
@@ -66,28 +62,23 @@ struct GroupDetailView: View {
         .navigationTitle(trip.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                GlassActionButton(title: "Add", systemImage: "plus", accentColor: .indigo) {
-                    showingAddExpense = true
-                }
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 NavigationLink {
                     SettlementView(trip: trip)
                 } label: {
-                    Label("Settle Up", systemImage: "arrow.triangle.swap")
-                        .font(.subheadline.weight(.semibold))
+                    Image(systemName: "arrow.triangle.swap")
                 }
-                .buttonStyle(.glass)
+
+                NavigationLink {
+                    AddExpenseView(trip: trip)
+                } label: {
+                    Image(systemName: "plus")
+                }
             }
-        }
-        .sheet(isPresented: $showingAddExpense) {
-            AddExpenseView(trip: trip)
         }
     }
 
-    // MARK: - Header Hero Card
+    // MARK: - Header Hero Card (Liquid Glass)
 
     private var headerHeroCard: some View {
         VStack(spacing: 16) {
@@ -96,14 +87,14 @@ struct GroupDetailView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "calendar")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(.secondary)
                     Text(dateRangeText(start: start, end: trip.endDate))
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.white.opacity(0.95))
+                        .foregroundStyle(.primary)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 4)
-                .background(.white.opacity(0.15), in: .capsule)
+                .clearGlassCapsule()
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -112,12 +103,12 @@ struct GroupDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("TOTAL SPENT")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(.secondary)
                         .tracking(1.0)
 
                     Text(totalSpend.formatted(.currency(code: primaryCurrencyCode)))
                         .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                         .contentTransition(.numericText())
                 }
 
@@ -126,29 +117,15 @@ struct GroupDetailView: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("AVG / MEMBER")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(.secondary)
                     Text(perPersonAverage.formatted(.currency(code: primaryCurrencyCode)))
                         .font(.system(.subheadline, design: .rounded, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(.primary)
                 }
             }
         }
         .padding(20)
-        .background {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [.indigo, .purple, .blue.opacity(0.8)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(.white.opacity(0.25), lineWidth: 1)
-                }
-                .shadow(color: .indigo.opacity(colorScheme == .dark ? 0.35 : 0.2), radius: 14, x: 0, y: 6)
-        }
+        .appleCardStyle(cornerRadius: 24)
     }
 
     // MARK: - Participants Card
@@ -182,7 +159,7 @@ struct GroupDetailView: View {
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 8)
-                            .background(colorScheme == .dark ? .white.opacity(0.06) : .black.opacity(0.04), in: RoundedRectangle(cornerRadius: 14))
+                            .clearGlassCard(cornerRadius: 14)
                         }
                     }
                 }
@@ -203,14 +180,13 @@ struct GroupDetailView: View {
 
                 Spacer()
 
-                Button {
-                    showingAddExpense = true
+                NavigationLink {
+                    AddExpenseView(trip: trip)
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.title3)
                         .foregroundStyle(.indigo)
                 }
-                .buttonStyle(.glass)
             }
 
             if activeExpenses.isEmpty {
@@ -255,7 +231,7 @@ struct GroupDetailView: View {
     // MARK: - Actions
 
     private func softDeleteExpense(_ expense: Expense) {
-        withAnimation(.smooth) {
+        withAnimation(.spring(.bouncy)) {
             expense.isTombstoned = true
             expense.updatedAt = .now
         }
@@ -274,8 +250,6 @@ struct GroupDetailView: View {
 
 struct AppleCardExpenseRow: View {
     let expense: Expense
-
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HStack(spacing: 14) {
@@ -310,7 +284,7 @@ struct AppleCardExpenseRow: View {
                         .font(.caption2.weight(.bold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(colorScheme == .dark ? .white.opacity(0.12) : .black.opacity(0.06), in: .capsule)
+                        .clearGlassCapsule()
                 }
             }
 
@@ -328,7 +302,7 @@ struct AppleCardExpenseRow: View {
             }
         }
         .padding(12)
-        .background(colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.03), in: RoundedRectangle(cornerRadius: 16))
+        .clearGlassCard(cornerRadius: 16)
     }
 
     private var splitMethodBadge: String {

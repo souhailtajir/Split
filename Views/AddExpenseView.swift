@@ -10,7 +10,6 @@ import SwiftData
 
 struct AddExpenseView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
 
     let trip: Trip
@@ -27,6 +26,13 @@ struct AddExpenseView: View {
     @State private var exactAmountTexts: [UUID: String] = [:]
     @State private var notes = ""
     @State private var currencyCode: String = Locale.current.currency?.identifier ?? "USD"
+    
+    @FocusState private var focusedField: Field?
+    
+    private enum Field: Hashable {
+        case amount
+        case exactAmount(UUID)
+    }
 
     // MARK: - Computed
 
@@ -70,90 +76,74 @@ struct AddExpenseView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                AmbientMeshBackground(style: .groups)
+        ZStack {
+            TopGradientWash(tint: .indigo, secondaryTint: .purple)
 
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        // Hero Amount Input Card
-                        heroAmountCard
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 20) {
+                    // Hero Amount Input Card
+                    heroAmountCard
 
-                        // Title & Date Card
-                        detailsCard
+                    // Title & Date Card
+                    detailsCard
 
-                        // Payer Chip Selector Card
-                        payerCard
+                    // Payer Chip Selector Card
+                    payerCard
 
-                        // Split Method Card
-                        splitMethodCard
+                    // Split Method Card
+                    splitMethodCard
 
-                        // Split Distribution Details Card
-                        splitDistributionCard
+                    // Split Distribution Details Card
+                    splitDistributionCard
 
-                        // Notes Card
-                        notesCard
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 100)
+                    // Notes Card
+                    notesCard
                 }
-            }
-            .navigationTitle("New Expense")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { saveExpense() }
-                        .fontWeight(.bold)
-                        .disabled(!isValid)
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 100)
             }
         }
-        .presentationDetents([.large])
+        .navigationTitle("New Expense")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") { saveExpense() }
+                    .fontWeight(.bold)
+                    .disabled(!isValid)
+            }
+        }
         .onAppear { initializeDefaults() }
+        .onAppear { focusedField = .amount }
     }
 
-    // MARK: - Hero Amount Card
+    // MARK: - Hero Amount Card (Liquid Glass)
 
     private var heroAmountCard: some View {
         VStack(spacing: 8) {
             Text("ENTER AMOUNT")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(.secondary)
                 .tracking(1.0)
 
             HStack(spacing: 4) {
                 Text(currencySymbol)
                     .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.85))
+                    .foregroundStyle(.primary.opacity(0.6))
 
                 TextField("0.00", text: $amountText)
                     .keyboardType(.decimalPad)
                     .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.leading)
+                    .focused($focusedField, equals: .amount)
+                    .submitLabel(.done)
+                    .toolbar { ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { focusedField = nil } } }
             }
             .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding(24)
-        .background {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [.indigo, .purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(.white.opacity(0.3), lineWidth: 1)
-                }
-                .shadow(color: .indigo.opacity(colorScheme == .dark ? 0.4 : 0.2), radius: 14, x: 0, y: 6)
-        }
+        .appleCardStyle(cornerRadius: 24)
     }
 
     // MARK: - Details Card
@@ -168,7 +158,7 @@ struct AddExpenseView: View {
                 TextField("What was this expense for?", text: $title)
                     .font(.system(.body, design: .rounded))
                     .padding(12)
-                    .background(colorScheme == .dark ? .white.opacity(0.06) : .black.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+                    .clearGlassCard(cornerRadius: 12)
 
                 DatePicker("Expense Date", selection: $date, displayedComponents: .date)
                     .font(.system(.subheadline, design: .rounded, weight: .semibold))
@@ -206,9 +196,9 @@ struct AddExpenseView: View {
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(
-                                isSelected ? Color.indigo.opacity(colorScheme == .dark ? 0.35 : 0.18) : (colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04)),
-                                in: RoundedRectangle(cornerRadius: 16)
+                            .glassEffect(
+                                isSelected ? .regular : .clear,
+                                in: .rect(cornerRadius: 16)
                             )
                             .overlay {
                                 if isSelected {
@@ -240,7 +230,7 @@ struct AddExpenseView: View {
                 Text("Exact").tag(ExpenseSplitMethod.byExactAmounts)
             }
             .pickerStyle(.segmented)
-            .animation(.spring(), value: splitMethod)
+            .animation(.spring(.bouncy), value: splitMethod)
         }
         .padding(18)
         .appleCardStyle(cornerRadius: 22)
@@ -301,12 +291,14 @@ struct AddExpenseView: View {
                                         .foregroundStyle(.primary)
                                         .frame(width: 60)
                                         .multilineTextAlignment(.trailing)
+                                        .focused($focusedField, equals: .exactAmount(participant.id))
+                                        .submitLabel(.done)
                                 }
                             }
                         }
                     }
                     .padding(8)
-                    .background(colorScheme == .dark ? .white.opacity(0.04) : .black.opacity(0.03), in: RoundedRectangle(cornerRadius: 12))
+                    .clearGlassCard(cornerRadius: 12)
                 }
             }
         }
@@ -326,7 +318,7 @@ struct AddExpenseView: View {
                 .font(.subheadline)
                 .lineLimit(2...4)
                 .padding(12)
-                .background(colorScheme == .dark ? .white.opacity(0.06) : .black.opacity(0.04), in: RoundedRectangle(cornerRadius: 14))
+                .clearGlassCard(cornerRadius: 14)
         }
         .padding(18)
         .appleCardStyle(cornerRadius: 22)
@@ -379,6 +371,10 @@ struct AddExpenseView: View {
     private func saveExpense() {
         guard let amount, let payerID = selectedPayerID else { return }
         guard let payer = participants.first(where: { $0.id == payerID }) else { return }
+        
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+        #endif
 
         let sharedWith = participants.filter { includedParticipantIDs.contains($0.id) }
 
@@ -409,6 +405,8 @@ struct AddExpenseView: View {
 // MARK: - Preview
 
 #Preview("Add Expense") {
-    AddExpenseView(trip: PreviewSampleData.sampleGroup)
-        .modelContainer(PreviewSampleData.container)
+    NavigationStack {
+        AddExpenseView(trip: PreviewSampleData.sampleGroup)
+    }
+    .modelContainer(PreviewSampleData.container)
 }

@@ -9,7 +9,6 @@ import SwiftUI
 import SwiftData
 
 struct ActivityView: View {
-    @Environment(\.colorScheme) private var colorScheme
     @Query(
         filter: #Predicate<Trip> { !$0.isTombstoned },
         sort: \Trip.createdAt,
@@ -18,50 +17,54 @@ struct ActivityView: View {
     private var trips: [Trip]
 
     @State private var timeRangeFilter: TimeRange = .allTime
+    @State private var searchText: String = ""
 
     enum TimeRange: String, CaseIterable, Identifiable {
         case week = "Week"
         case month = "Month"
         case allTime = "All Time"
-        var id: String { self.rawValue }
+        var id: String { rawValue }
     }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                AmbientMeshBackground(style: .activity)
+                TopGradientWash(tint: .pink, secondaryTint: .purple)
 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        // Time Range Segmented Picker
-                        Picker("Time Range", selection: $timeRangeFilter) {
-                            ForEach(TimeRange.allCases) { range in
-                                Text(range.rawValue).tag(range)
-                            }
+                VStack(spacing: 20) {
+                    // Time Range Segmented Picker
+                    Picker("Time Range", selection: $timeRangeFilter) {
+                        ForEach(TimeRange.allCases) { range in
+                            Text(range.rawValue).tag(range)
                         }
-                        .pickerStyle(.segmented)
-                        .animation(.spring(), value: timeRangeFilter)
-                        .padding(.horizontal, 4)
-
-                        // Apple Health Concentric Rings Card
-                        healthRingsCard
-
-                        // Category Breakdown Section
-                        categoryBreakdownCard
-
-                        // Insights & Trends Deck
-                        insightsDeck
-
-                        // Participant Contributions
-                        participantLeaderboardCard
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 100)
+                    .pickerStyle(.segmented)
+                    .animation(.spring(.bouncy), value: timeRangeFilter)
+                    .padding(.horizontal, 4)
+
+                    // Apple Health Concentric Rings Card
+                    healthRingsCard
+
+                    // Category Breakdown Section
+                    categoryBreakdownCard
+
+                    // Insights & Trends Deck
+                    insightsDeck
+
+                    // Participant Contributions
+                    participantLeaderboardCard
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 100)
+            }
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search expenses")
+            .refreshable {
+                await refreshActivity()
             }
             .navigationTitle("Activity")
-            .navigationBarTitleDisplayMode(.inline)
+            }
         }
     }
 
@@ -133,6 +136,8 @@ struct ActivityView: View {
     }
 
     // MARK: - Category Breakdown Card
+
+    @Environment(\.colorScheme) private var colorScheme
 
     private var categoryBreakdownCard: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -289,15 +294,22 @@ struct ActivityView: View {
     private var filteredExpenses: [Expense] {
         let allExpenses = trips.flatMap { $0.expenses.filter { !$0.isTombstoned } }
         let now = Date.now
+        let timeFiltered: [Expense]
         switch timeRangeFilter {
         case .week:
             let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: now) ?? now
-            return allExpenses.filter { $0.date >= weekAgo }
+            timeFiltered = allExpenses.filter { $0.date >= weekAgo }
         case .month:
             let monthAgo = Calendar.current.date(byAdding: .month, value: -1, to: now) ?? now
-            return allExpenses.filter { $0.date >= monthAgo }
+            timeFiltered = allExpenses.filter { $0.date >= monthAgo }
         case .allTime:
-            return allExpenses
+            timeFiltered = allExpenses
+        }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return timeFiltered }
+        return timeFiltered.filter { exp in
+            exp.title.localizedCaseInsensitiveContains(query) ||
+            (exp.paidBy?.handle.localizedCaseInsensitiveContains(query) ?? false)
         }
     }
 
@@ -412,6 +424,13 @@ struct ActivityView: View {
             let color = colors[abs(val.handle.hashValue) % colors.count]
             return ParticipantLeaderboardItem(handle: val.handle, initials: initials, color: color, expenseCount: val.count, totalPaid: val.total)
         }.sorted { $0.totalPaid > $1.totalPaid }
+    }
+
+    // MARK: - Refresh
+
+    @MainActor
+    private func refreshActivity() async {
+        try? await Task.sleep(for: .milliseconds(350))
     }
 }
 

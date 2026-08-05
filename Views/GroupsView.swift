@@ -10,7 +10,6 @@ import SwiftData
 
 struct GroupsView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.colorScheme) private var colorScheme
     @Query(
         filter: #Predicate<Trip> { !$0.isTombstoned },
         sort: \Trip.createdAt,
@@ -18,13 +17,14 @@ struct GroupsView: View {
     )
     private var groups: [Trip]
 
-    @State private var showingNewGroup = false
+    @State private var isAddingGroup = false
     @State private var newGroupName = ""
+    @FocusState private var isGroupNameFocused: Bool
 
     var body: some View {
         NavigationStack {
             ZStack {
-                AmbientMeshBackground(style: .groups)
+                TopGradientWash(tint: .indigo, secondaryTint: .purple)
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 20) {
@@ -39,13 +39,27 @@ struct GroupsView: View {
                             Spacer()
 
                             GlassActionButton(title: "New", systemImage: "plus", accentColor: .indigo) {
-                                showingNewGroup = true
+                                withAnimation(.spring(.bouncy)) {
+                                    isAddingGroup = true
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    isGroupNameFocused = true
+                                }
                             }
                         }
                         .padding(.horizontal, 4)
 
+                        // Inline Add Group Card
+                        if isAddingGroup {
+                            inlineAddGroupCard
+                                .transition(.asymmetric(
+                                    insertion: .scale(scale: 0.92).combined(with: .opacity).combined(with: .offset(y: -8)),
+                                    removal: .scale(scale: 0.92).combined(with: .opacity)
+                                ))
+                        }
+
                         // Group Deck
-                        if groups.isEmpty {
+                        if groups.isEmpty && !isAddingGroup {
                             emptyStateCard
                         } else {
                             LazyVStack(spacing: 14) {
@@ -73,14 +87,10 @@ struct GroupsView: View {
                 }
             }
             .navigationTitle("Groups")
-            .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingNewGroup) {
-                newGroupSheet
-            }
         }
     }
 
-    // MARK: - Hero Summary Card
+    // MARK: - Hero Summary Card (Liquid Glass)
 
     private var heroSummaryCard: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -88,25 +98,22 @@ struct GroupsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("OVERVIEW")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(.secondary)
                         .tracking(1.0)
 
                     Text(allGroupsTotalSpend.formatted(.currency(code: primaryCurrencyCode)))
                         .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                         .contentTransition(.numericText())
                 }
 
                 Spacer()
 
-                ZStack {
-                    Circle()
-                        .fill(.white.opacity(0.15))
-                        .frame(width: 48, height: 48)
-                    Image(systemName: "creditcard.fill")
-                        .font(.title2)
-                        .foregroundStyle(.white)
-                }
+                Image(systemName: "creditcard.fill")
+                    .font(.title2)
+                    .foregroundStyle(.indigo)
+                    .frame(width: 48, height: 48)
+                    .glassEffect(.clear, in: .circle)
             }
 
             HStack(spacing: 10) {
@@ -115,25 +122,49 @@ struct GroupsView: View {
             }
         }
         .padding(20)
-        .background {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.indigo,
-                            Color.purple.opacity(0.9),
-                            Color.blue.opacity(0.8)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(.white.opacity(0.3), lineWidth: 1)
+        .appleCardStyle(cornerRadius: 24)
+    }
+
+    // MARK: - Inline Add Group Card
+
+    private var inlineAddGroupCard: some View {
+        VStack(spacing: 14) {
+            Text("NEW GROUP")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .tracking(0.5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 12) {
+                TextField("Group name", text: $newGroupName)
+                    .font(.system(.title3, design: .rounded, weight: .semibold))
+                    .focused($isGroupNameFocused)
+                    .onSubmit { createGroup() }
+                    .submitLabel(.done)
+
+                Button {
+                    createGroup()
+                } label: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(newGroupName.trimmingCharacters(in: .whitespaces).isEmpty ? Color.gray.opacity(0.5) : Color.indigo)
                 }
-                .shadow(color: Color.indigo.opacity(colorScheme == .dark ? 0.4 : 0.2), radius: 14, x: 0, y: 6)
+                .disabled(newGroupName.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                Button {
+                    withAnimation(.spring(.bouncy)) {
+                        isAddingGroup = false
+                        newGroupName = ""
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
+        .padding(18)
+        .appleCardStyle(cornerRadius: 20)
     }
 
     // MARK: - Empty State Card
@@ -156,67 +187,17 @@ struct GroupsView: View {
             }
 
             GlassActionButton(title: "Create New Group", systemImage: "plus.circle.fill", accentColor: .indigo) {
-                showingNewGroup = true
+                withAnimation(.spring(.bouncy)) {
+                    isAddingGroup = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isGroupNameFocused = true
+                }
             }
             .padding(.bottom, 8)
         }
         .padding(24)
         .appleCardStyle()
-    }
-
-    // MARK: - New Group Sheet
-
-    private var newGroupSheet: some View {
-        NavigationStack {
-            ZStack {
-                AmbientMeshBackground(style: .groups)
-
-                VStack(spacing: 24) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("GROUP NAME")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .tracking(0.5)
-
-                        TextField("e.g. Summer in Lisbon, Friday Dinner, Roommates", text: $newGroupName)
-                            .font(.system(.title3, design: .rounded, weight: .semibold))
-                            .padding()
-                            .glassEffect(.regular, in: .rect(cornerRadius: 16))
-                    }
-
-                    Spacer()
-
-                    Button {
-                        createGroup()
-                    } label: {
-                        Text("Create Group")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                newGroupName.trimmingCharacters(in: .whitespaces).isEmpty
-                                ? AnyShapeStyle(Color.gray.opacity(0.4))
-                                : AnyShapeStyle(Color.indigo.gradient),
-                                in: RoundedRectangle(cornerRadius: 18)
-                            )
-                    }
-                    .disabled(newGroupName.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-                .padding(24)
-            }
-            .navigationTitle("New Group")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        newGroupName = ""
-                        showingNewGroup = false
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium])
     }
 
     // MARK: - Computed Properties
@@ -242,16 +223,16 @@ struct GroupsView: View {
         let name = newGroupName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
 
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+        withAnimation(.spring(.bouncy)) {
             let group = Trip(name: name, startDate: .now)
             modelContext.insert(group)
+            isAddingGroup = false
         }
         newGroupName = ""
-        showingNewGroup = false
     }
 
     private func softDelete(group: Trip) {
-        withAnimation(.smooth) {
+        withAnimation(.spring(.bouncy)) {
             group.isTombstoned = true
             group.updatedAt = .now
         }
@@ -268,14 +249,14 @@ private struct StatPill: View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.caption)
-                .foregroundStyle(.white.opacity(0.8))
+                .foregroundStyle(.secondary)
             Text(value)
                 .font(.caption.weight(.bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(.white.opacity(0.15), in: .capsule)
+        .clearGlassCapsule()
     }
 }
 
@@ -372,7 +353,7 @@ struct GroupCardRow: View {
             }
         }
         .padding(16)
-        .appleCardStyle(cornerRadius: 20)
+        .interactiveGlassCard(cornerRadius: 20)
     }
 
     /// Context-aware icon based on group name keywords.
@@ -405,8 +386,6 @@ private struct MetadataChip: View {
     let value: String
     let label: String
 
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: icon)
@@ -421,7 +400,7 @@ private struct MetadataChip: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04), in: .capsule)
+        .clearGlassCapsule()
     }
 }
 
