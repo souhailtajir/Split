@@ -29,6 +29,7 @@ struct SplitApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(UserProfile.shared)
         }
         .modelContainer(sharedModelContainer)
     }

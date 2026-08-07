@@ -67,7 +67,7 @@ enum PreviewSampleData {
         let trip = Trip(name: "Summer in Lisbon", startDate: .now.addingTimeInterval(-86_400 * 5))
         context.insert(trip)
 
-        let alice = Participant(handle: "alice", fullName: "Alice Martin", trip: trip)
+        let alice = Participant(handle: "alice", fullName: "Alice Martin", isOwner: true, trip: trip)
         let bob   = Participant(handle: "bob", fullName: "Bob Chen", trip: trip)
         let carol = Participant(handle: "carol", fullName: "Carol Díaz", trip: trip)
         context.insert(alice)
@@ -112,7 +112,7 @@ enum PreviewSampleData {
         let house = Trip(name: "Apartment Q3 2026", startDate: .now.addingTimeInterval(-86_400 * 30))
         context.insert(house)
 
-        let dave = Participant(handle: "dave", fullName: "Dave Kim", trip: house)
+        let dave = Participant(handle: "dave", fullName: "Dave Kim", isOwner: true, trip: house)
         let emma = Participant(handle: "emma", fullName: "Emma Novak", trip: house)
         context.insert(dave)
         context.insert(emma)

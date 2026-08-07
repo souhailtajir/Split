@@ -21,7 +21,9 @@ struct GroupDetailView: View {
     }
 
     private var activeParticipants: [Participant] {
-        trip.participants.filter { !$0.isTombstoned }
+        trip.participants
+            .filter { !$0.isTombstoned }
+            .sorted { $0.isOwner && !$1.isOwner }
     }
 
     private var totalSpend: Decimal {

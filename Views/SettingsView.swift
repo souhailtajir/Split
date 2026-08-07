@@ -9,12 +9,15 @@ import SwiftUI
 import SwiftData
 
 struct SettingsView: View {
+    @Environment(UserProfile.self) private var userProfile
     @Query private var trips: [Trip]
     @Query private var expenses: [Expense]
 
     @State private var isSyncing = false
     @State private var syncStatusText = "P2P Mesh Network Ready"
     @State private var discoveredPeersCount = 1
+    @State private var isEditingProfile = false
+    @State private var editedName = ""
 
     var body: some View {
         NavigationStack {
@@ -23,6 +26,9 @@ struct SettingsView: View {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 20) {
+                        // Profile Card
+                        profileCard
+
                         // Local Sync Status Card
                         syncStatusCard
 
@@ -41,6 +47,100 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings & Sync")
+        }
+    }
+
+    // MARK: - Profile Card
+
+    private var profileCard: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 14) {
+                // Avatar
+                ZStack {
+                    Circle()
+                        .fill(.indigo.gradient)
+                        .frame(width: 52, height: 52)
+                        .shadow(color: .indigo.opacity(0.35), radius: 8, y: 3)
+
+                    Text(profileInitials)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+                .overlay {
+                    Circle()
+                        .glassEffect(.clear, in: .circle)
+                        .frame(width: 54, height: 54)
+                }
+
+                if isEditingProfile {
+                    TextField("Your name", text: $editedName)
+                        .font(.system(.headline, design: .rounded, weight: .bold))
+                        .submitLabel(.done)
+                        .onSubmit { saveProfile() }
+                } else {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(userProfile.displayName)
+                            .font(.system(.headline, design: .rounded, weight: .bold))
+                            .foregroundStyle(.primary)
+
+                        Text("@\(userProfile.handle)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                Button {
+                    if isEditingProfile {
+                        saveProfile()
+                    } else {
+                        editedName = userProfile.displayName
+                        withAnimation(.spring(.bouncy)) {
+                            isEditingProfile = true
+                        }
+                    }
+                } label: {
+                    Image(systemName: isEditingProfile ? "checkmark.circle.fill" : "pencil")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(isEditingProfile ? .indigo : .secondary)
+                }
+                .buttonStyle(.glass)
+            }
+
+            HStack {
+                Label("Local Account", systemImage: "person.crop.circle.badge.checkmark")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text("On Device")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.indigo)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.indigo.opacity(0.15), in: .capsule)
+            }
+        }
+        .padding(20)
+        .appleCardStyle(cornerRadius: 22)
+    }
+
+    private var profileInitials: String {
+        let name = userProfile.displayName
+        guard !name.isEmpty else { return "?" }
+        let components = name.split(separator: " ")
+        return components.prefix(2).map { String($0.prefix(1)) }.joined().uppercased()
+    }
+
+    private func saveProfile() {
+        let trimmed = editedName.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        userProfile.displayName = trimmed
+        userProfile.handle = trimmed.lowercased().replacingOccurrences(of: " ", with: "")
+        withAnimation(.spring(.bouncy)) {
+            isEditingProfile = false
         }
     }
 
@@ -257,4 +357,5 @@ struct SettingsView: View {
 #Preview("Settings") {
     SettingsView()
         .modelContainer(PreviewSampleData.container)
+        .environment(UserProfile.shared)
 }

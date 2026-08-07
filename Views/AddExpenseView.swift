@@ -37,7 +37,9 @@ struct AddExpenseView: View {
     // MARK: - Computed
 
     private var participants: [Participant] {
-        trip.participants.filter { !$0.isTombstoned }
+        trip.participants
+            .filter { !$0.isTombstoned }
+            .sorted { $0.isOwner && !$1.isOwner }
     }
 
     private var amount: Decimal? {
@@ -360,7 +362,8 @@ struct AddExpenseView: View {
 
     private func initializeDefaults() {
         includedParticipantIDs = Set(participants.map(\.id))
-        selectedPayerID = participants.first?.id
+        // Pre-select the group owner (creator) as the default payer
+        selectedPayerID = participants.first(where: \.isOwner)?.id ?? participants.first?.id
         for p in participants {
             shareWeights[p.id] = 1
         }

@@ -20,8 +20,9 @@ final class Participant: LocalMutationTrackable {
     var isTombstoned: Bool
 
     // MARK: - Domain
-    @Attribute(.unique) var handle: String // display name or unique handle within app
+    var handle: String // display name or unique handle within app
     var fullName: String?
+    var isOwner: Bool
 
     // Owning trip
     var trip: Trip?
@@ -36,6 +37,7 @@ final class Participant: LocalMutationTrackable {
         id: UUID = UUID(),
         handle: String,
         fullName: String? = nil,
+        isOwner: Bool = false,
         trip: Trip? = nil,
         createdAt: Date = .now,
         updatedAt: Date = .now,
@@ -47,6 +49,7 @@ final class Participant: LocalMutationTrackable {
         self.handle = handle
         self.fullName = fullName
         self.trip = trip
+        self.isOwner = isOwner
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.lastModifiedByDeviceID = lastModifiedByDeviceID
